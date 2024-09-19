@@ -21,11 +21,11 @@ public static class AuthApi
     
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    private static async Task<IResult> Register(UserDto request, IRepo<User> service)
+    private static async Task<IResult> Register(PostUserDto request, IRepo<User> service)
     {
         //user exists
         if (service.GetAll().Any(u => u.Username == request.Username))
-            return Results.Conflict(new Payload<UserDto>() { status = "Username already exists!", data = request });
+            return Results.Conflict(new Payload<PostUserDto>() { status = "Username already exists!", data = request });
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         User user = new()
@@ -42,16 +42,16 @@ public static class AuthApi
 
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    private static async Task<IResult> Login(UserDto request, IRepo<User> service, ConfigurationSettings config)
+    private static async Task<IResult> Login(PostUserDto request, IRepo<User> service, ConfigurationSettings config)
     {
         //user doesn't exist
-        if (!service.GetAll().Any(u => u.Username == request.Username)) return Results.BadRequest(new Payload<UserDto>() { status = "User does not exist", data = request });
+        if (!service.GetAll().Any(u => u.Username == request.Username)) return Results.BadRequest(new Payload<PostUserDto>() { status = "User does not exist", data = request });
 
         var user = service.GetAll().FirstOrDefault(u => u.Username == request.Username)!;
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            return Results.BadRequest(new Payload<UserDto>() { status = "Wrong Password", data = request });
+            return Results.BadRequest(new Payload<PostUserDto>() { status = "Wrong Password", data = request });
         }
         var token =  CreateToken(user, config);
         return Results.Ok(new Payload<string>() { data =  token }) ;
@@ -61,6 +61,7 @@ public static class AuthApi
     {
         List<Claim> claims = new()
         {
+            new Claim(ClaimTypes.Sid, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Username)                
         };
         
